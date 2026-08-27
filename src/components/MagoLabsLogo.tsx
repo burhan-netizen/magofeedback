@@ -14,7 +14,7 @@ export const MagoLabsLogo: React.FC<MagoLabsLogoProps> = ({
 }) => {
   const imgHeightClasses = {
     sm: 'h-8',
-    md: 'h-11',
+    md: 'h-[35px] sm:h-11',
     lg: 'h-14',
     xl: 'h-16',
   };
@@ -34,4 +34,3 @@ export const MagoLabsLogo: React.FC<MagoLabsLogoProps> = ({
     </div>
   );
 };
-
