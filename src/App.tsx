@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MagoLabsLogo } from './components/MagoLabsLogo';
 import { ProgressIndicator } from './components/ProgressIndicator';
@@ -32,6 +32,7 @@ interface FormStateDraft {
 }
 
 export default function App() {
+  const stepCardRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState<FormStep>(1);
   const [highestStepReached, setHighestStepReached] = useState<FormStep>(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -122,24 +123,39 @@ export default function App() {
     isSubmitted,
   ]);
 
+  const scrollToStepCard = () => {
+    // Scroll the step form into view just below the sticky header, instead
+    // of jumping to the very top of the page (which would land above the
+    // hero text and progress indicator, forcing an extra manual scroll).
+    requestAnimationFrame(() => {
+      if (stepCardRef.current) {
+        const headerOffset = 96;
+        const top = stepCardRef.current.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+        window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  };
+
   const handleNext = () => {
     const nextStep = (currentStep + 1) as FormStep;
     setCurrentStep(nextStep);
     setHighestStepReached((prev) => (nextStep > prev ? nextStep : prev));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollToStepCard();
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep((currentStep - 1) as FormStep);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollToStepCard();
     }
   };
 
   const handleStepJump = (step: FormStep) => {
     if (step <= highestStepReached) {
       setCurrentStep(step);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollToStepCard();
     }
   };
 
@@ -237,7 +253,7 @@ export default function App() {
       {/* Top Navbar */}
       <header className="w-full bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <a
+          
             href="https://www.magolabs.in"
             target="_blank"
             rel="noopener noreferrer"
@@ -251,7 +267,7 @@ export default function App() {
               <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
               Secure Submission
             </span>
-            <a
+            
               href="https://www.magolabs.in"
               target="_blank"
               rel="noopener noreferrer"
@@ -268,25 +284,27 @@ export default function App() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {!isSubmitted ? (
           <div className="space-y-6 sm:space-y-8">
-            {/* Top Header Card matching Professional Polish theme */}
-            <div className="bg-white rounded-[32px] border border-slate-200/80 p-6 sm:p-8 shadow-xs relative overflow-hidden text-center space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[10px] font-bold tracking-widest text-slate-500 uppercase">
-                <span>EST. TIME: 2 MIN</span>
-                <span>•</span>
-                <span>MAGO LABS CLIENT FEEDBACK</span>
+            {/* Top Header Card matching Professional Polish theme — only on Step 1 */}
+            {currentStep === 1 && (
+              <div className="bg-white rounded-[32px] border border-slate-200/80 p-6 sm:p-8 shadow-xs relative overflow-hidden text-center space-y-3">
+                <div className="inline-flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[8px] sm:text-[10px] font-bold tracking-wide sm:tracking-widest text-slate-500 uppercase whitespace-nowrap">
+                  <span>EST. TIME: 2 MIN</span>
+                  <span>•</span>
+                  <span>MAGO LABS CLIENT FEEDBACK</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
+                  We&apos;d Love To Hear From You
+                </h1>
+                <div className="max-w-xl mx-auto space-y-1.5 text-sm sm:text-base text-slate-600 leading-relaxed">
+                  <p>
+                    Your feedback helps us understand what we&apos;re doing well, where we can improve, and how we can create an even better experience for our clients.
+                  </p>
+                  <p className="text-xs sm:text-sm text-slate-400 font-medium">
+                    Thank you for taking a few minutes to share your experience.
+                  </p>
+                </div>
               </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
-                We&apos;d Love To Hear From You
-              </h1>
-              <div className="max-w-xl mx-auto space-y-1.5 text-sm sm:text-base text-slate-600 leading-relaxed">
-                <p>
-                  Your feedback helps us understand what we&apos;re doing well, where we can improve, and how we can create an even better experience for our clients.
-                </p>
-                <p className="text-xs sm:text-sm text-slate-400 font-medium">
-                  Thank you for taking a few minutes to share your experience.
-                </p>
-              </div>
-            </div>
+            )}
 
             {/* Stepper Progress Indicator */}
             <ProgressIndicator
@@ -296,7 +314,7 @@ export default function App() {
             />
 
             {/* Step Card Container */}
-            <div className="bg-white rounded-[32px] border border-slate-200/80 shadow-xs p-6 sm:p-10 relative overflow-hidden transition-all duration-300">
+            <div ref={stepCardRef} className="bg-white rounded-[32px] border border-slate-200/80 shadow-xs p-6 sm:p-10 relative overflow-hidden transition-all duration-300">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentStep}
@@ -381,30 +399,18 @@ export default function App() {
 
       {/* Footer */}
       <footer className="w-full border-t border-slate-200/80 bg-white py-8 mt-12 text-slate-500 text-xs">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <MagoLabsLogo size="sm" />
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-600 font-medium">Client Feedback Portal</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <a
-              href="https://www.magolabs.in"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-slate-900 transition-colors font-medium"
-            >
-              Official Website
-            </a>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-400 font-mono">
-              feedback.magolabs.in
-            </span>
-          </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col items-center justify-center gap-2 text-center">
+          <MagoLabsLogo size="sm" />
+          
+            href="https://www.magolabs.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-900 transition-colors font-medium text-slate-500"
+          >
+            www.magolabs.in
+          </a>
         </div>
       </footer>
     </div>
   );
 }
-
