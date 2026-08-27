@@ -1,7 +1,0 @@
-{
-  "name": "Mago Labs Client Feedback",
-  "description": "A premium, modern client feedback and referral portal for Mago Labs.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
-
