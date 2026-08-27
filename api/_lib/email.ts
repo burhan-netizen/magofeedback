@@ -40,8 +40,8 @@ function renderFeedbackEmail(payload: FeedbackSubmission): string {
 
     <h3 style="margin-bottom:4px;">Client</h3>
     <p style="margin:0;">
-      <strong>${esc(client.name)}</strong> — ${esc(client.company)}<br/>
-      <a href="mailto:${esc(client.email)}">${esc(client.email)}</a>
+      <strong>${esc(client.name)}</strong>${client.company ? ` — ${esc(client.company)}` : ''}<br/>
+      ${client.email ? `<a href="mailto:${esc(client.email)}">${esc(client.email)}</a>` : '<span style="color:#a1a1aa;">No email provided</span>'}
     </p>
 
     <h3 style="margin-bottom:4px;margin-top:20px;">Ratings</h3>
@@ -86,7 +86,7 @@ export interface SendResult {
 }
 
 export async function sendFeedbackEmail(payload: FeedbackSubmission): Promise<SendResult> {
-  if (!payload?.client?.email || !payload?.client?.name) {
+  if (!payload?.client?.name?.trim()) {
     return { ok: false, status: 400, body: { success: false, error: 'Missing required client info' } };
   }
 
@@ -112,7 +112,7 @@ export async function sendFeedbackEmail(payload: FeedbackSubmission): Promise<Se
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: [TO_EMAIL],
-        reply_to: payload.client.email,
+        ...(payload.client.email?.trim() ? { reply_to: payload.client.email.trim() } : {}),
         subject: `New client feedback — ${payload.client.name} (${payload.client.company || 'N/A'})`,
         html: renderFeedbackEmail(payload),
       }),
