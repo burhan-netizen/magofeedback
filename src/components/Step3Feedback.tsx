@@ -1,6 +1,6 @@
 import React from 'react';
 import { FeedbackData } from '../types';
-import { OptionalTag, StepHeader, StepNav } from './ui';
+import { StepHeader, StepNav } from './ui';
 
 interface Step3Props {
   data: FeedbackData;
@@ -34,7 +34,6 @@ export const Step3Feedback: React.FC<Step3Props> = ({ data, overall, onUpdate, o
         <div>
           <label htmlFor="fb-liked" className="ml-label">
             What did you like most about working with us?
-            <OptionalTag />
           </label>
           <textarea
             id="fb-liked"
@@ -49,7 +48,6 @@ export const Step3Feedback: React.FC<Step3Props> = ({ data, overall, onUpdate, o
         <div>
           <label htmlFor="fb-improve" className="ml-label">
             {lowScore ? 'What went wrong, and what should we have done instead?' : 'One thing we could do better next time?'}
-            <OptionalTag />
           </label>
           <textarea
             id="fb-improve"

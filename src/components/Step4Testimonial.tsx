@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { TestimonialData } from '../types';
-import { OptionalTag, StepHeader, StepNav } from './ui';
+import { StepHeader, StepNav } from './ui';
 
 interface Step4Props {
   data: TestimonialData;
@@ -88,7 +88,6 @@ export const Step4Testimonial: React.FC<Step4Props> = ({ data, liked, displayNam
           <div className="flex items-end justify-between gap-3">
             <label htmlFor="testimonial-text" className="ml-label">
               Your testimonial
-              <OptionalTag />
             </label>
             {liked.trim() && !data.text.trim() && (
               <button type="button" className="ml-link-btn mb-1.5" onClick={() => onUpdate({ text: liked.trim() })}>
@@ -112,7 +111,6 @@ export const Step4Testimonial: React.FC<Step4Props> = ({ data, liked, displayNam
         <div>
           <p className="ml-label">
             Your photo or business logo
-            <OptionalTag />
           </p>
           <p className="text-[13px] text-muted -mt-0.5 mb-3">Testimonials with a face or logo are trusted far more.</p>
 

@@ -49,21 +49,6 @@ const newReferral = (preset: Partial<ReferralEntry> = {}): ReferralEntry => ({
   ...preset,
 });
 
-/** Lets you send personal links like ?name=Rahul&company=Modi%20Foods */
-function readPrefill(): Partial<ClientInfo> {
-  try {
-    const p = new URLSearchParams(window.location.search);
-    const out: Partial<ClientInfo> = {};
-    (['name', 'company', 'role', 'email'] as const).forEach((k) => {
-      const v = p.get(k);
-      if (v) out[k] = v.slice(0, 120);
-    });
-    return out;
-  } catch {
-    return {};
-  }
-}
-
 export default function App() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState<FormStep>(1);
@@ -82,15 +67,14 @@ export default function App() {
   const [honeypot, setHoneypot] = useState('');
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
 
-  // Restore a saved draft, then apply any personal-link prefill on top.
+  // Restore a saved draft so clients can pick up where they left off.
   useEffect(() => {
     let alive = true;
     (async () => {
-      const prefill = readPrefill();
       try {
         const saved = await loadDraft<FormStateDraft>();
         if (saved && alive) {
-          setClient({ ...EMPTY_CLIENT, ...saved.client, ...prefill });
+          setClient({ ...EMPTY_CLIENT, ...saved.client });
           setRatings({ ...EMPTY_RATINGS, ...saved.ratings });
           setFeedback({ ...EMPTY_FEEDBACK, ...saved.feedback });
           setTestimonial({ ...EMPTY_TESTIMONIAL, ...saved.testimonial });
@@ -106,11 +90,9 @@ export default function App() {
           if (saved.highestStepReached) setHighestStepReached(saved.highestStepReached);
           if (saved.step && saved.step <= 6) setCurrentStep(saved.step);
           if (saved.startedAt) setStartedAt(saved.startedAt);
-        } else if (alive) {
-          setClient({ ...EMPTY_CLIENT, ...prefill });
         }
       } catch {
-        if (alive) setClient({ ...EMPTY_CLIENT, ...prefill });
+        /* no draft, start fresh */
       } finally {
         if (alive) setIsDraftLoaded(true);
       }
@@ -213,7 +195,7 @@ export default function App() {
 
   const handleReset = () => {
     clearDraft();
-    setClient({ ...EMPTY_CLIENT, ...readPrefill() });
+    setClient(EMPTY_CLIENT);
     setRatings(EMPTY_RATINGS);
     setFeedback(EMPTY_FEEDBACK);
     setTestimonial(EMPTY_TESTIMONIAL);
@@ -248,7 +230,7 @@ export default function App() {
               <div className="mb-10">
                 <p className="ml-eyebrow">About 2 minutes / 6 short steps</p>
                 <h1 className="mt-4 text-[36px] sm:text-[52px] leading-[1.05] font-bold tracking-tight">
-                  {client.name.trim() ? `${client.name.trim().split(/\s+/)[0]}, how` : 'How'} did we{' '}
+                  How did we{' '}
                   <span className="ml-mark">do?</span>
                 </h1>
                 <p className="mt-5 text-[16px] sm:text-[17px] leading-relaxed text-muted max-w-xl">

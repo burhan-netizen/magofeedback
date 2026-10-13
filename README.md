@@ -12,16 +12,6 @@ Each submission is emailed to Burhan through Resend and, optionally, logged to a
 5. Referrals (two cards ready, memory prompts, gentle nudge before skipping)
 6. Review and send, then a thank you screen with a Google review prompt and a share button
 
-## Personal links
-
-Prefill the client's details by adding them to the link:
-
-```
-https://feedback.magolabs.in/?name=Rahul%20Shah&company=Modi%20Foods&email=rahul@example.com
-```
-
-Supported: `name`, `company`, `role`, `email`. Spaces become `%20`.
-
 ## Environment variables (Vercel > Settings > Environment Variables)
 
 | Variable | Required | What it does |

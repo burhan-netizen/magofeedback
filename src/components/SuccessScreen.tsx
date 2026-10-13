@@ -14,7 +14,6 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({ submission, onRese
   const [copied, setCopied] = useState(false);
   const overall = submission?.ratings.overall ?? 0;
   const happy = overall >= 4;
-  const firstName = submission?.client.name.trim().split(/\s+/)[0] || '';
   const reviewText = (submission?.testimonial.text || submission?.feedback.liked || '').trim();
   const referralCount = submission?.referrals.length ?? 0;
 
@@ -131,12 +130,12 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({ submission, onRese
       <h1 className="mt-4 text-[34px] sm:text-[44px] leading-[1.08] font-bold tracking-tight text-ink">
         {happy ? (
           <>
-            Thank you{firstName ? `, ${firstName}` : ''}. <br className="hidden sm:block" />
+            Thank you. <br className="hidden sm:block" />
             <span className="ml-mark">That means a lot.</span>
           </>
         ) : (
           <>
-            Thank you{firstName ? `, ${firstName}` : ''}, <br className="hidden sm:block" />
+            Thank you <br className="hidden sm:block" />
             for being honest.
           </>
         )}
