@@ -1,5 +1,5 @@
 {
-  "name": "Mago Labs - Client Feedback Form",
+  "name": "Mago Labs Client Feedback",
   "short_name": "Mago Labs",
   "icons": [
     {
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#0f172a",
-  "background_color": "#ffffff",
+  "theme_color": "#fafaf8",
+  "background_color": "#fafaf8",
   "display": "standalone"
 }

@@ -1,132 +1,107 @@
 import React, { useState } from 'react';
-import { Ratings } from '../types';
+import { Ratings, RecommendationOption } from '../types';
 import { StarRating } from './StarRating';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { OptionalTag, StepHeader, StepNav } from './ui';
 
 interface Step2Props {
   ratings: Ratings;
+  recommendation: RecommendationOption;
   onUpdate: (ratings: Partial<Ratings>) => void;
+  onRecommendation: (value: RecommendationOption) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
+const RECOMMEND_OPTIONS: Array<{ value: Exclude<RecommendationOption, ''>; label: string }> = [
+  { value: 'Definitely', label: 'Definitely' },
+  { value: 'Probably', label: 'Probably' },
+  { value: 'Not Sure', label: 'Not sure' },
+  { value: 'Probably Not', label: 'Probably not' },
+];
+
+const DETAILS: Array<{ key: Exclude<keyof Ratings, 'overall'>; label: string; description: string }> = [
+  { key: 'quality', label: 'Quality of work', description: 'Design, build and attention to detail' },
+  { key: 'communication', label: 'Communication', description: 'Clear, quick and easy to reach' },
+  { key: 'timeliness', label: 'Timeliness', description: 'Kept to the plan and the dates' },
+  { key: 'value', label: 'Value for money', description: 'What you got for what you paid' },
+];
+
 export const Step2Experience: React.FC<Step2Props> = ({
   ratings,
+  recommendation,
   onUpdate,
+  onRecommendation,
   onNext,
   onBack,
 }) => {
-  const [submittedAttempt, setSubmittedAttempt] = useState(false);
+  const [tried, setTried] = useState(false);
+  const overallError = tried && !ratings.overall ? 'Tap a star to rate your overall experience.' : '';
+  const recError = tried && !recommendation ? 'Pick one option.' : '';
 
-  const errors: Partial<Record<keyof Ratings, string>> = {};
-  if (submittedAttempt) {
-    if (!ratings.overall) errors.overall = 'Please select a rating for Overall Experience';
-    if (!ratings.quality) errors.quality = 'Please select a rating for Quality of Work';
-    if (!ratings.communication) errors.communication = 'Please select a rating for Communication';
-    if (!ratings.timeliness) errors.timeliness = 'Please select a rating for Timeliness';
-    if (!ratings.value) errors.value = 'Please select a rating for Value for Money';
-  }
-
-  const handleContinue = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmittedAttempt(true);
-
-    if (
-      ratings.overall > 0 &&
-      ratings.quality > 0 &&
-      ratings.communication > 0 &&
-      ratings.timeliness > 0 &&
-      ratings.value > 0
-    ) {
-      onNext();
-    }
+    setTried(true);
+    if (ratings.overall && recommendation) onNext();
   };
 
   return (
-    <form onSubmit={handleContinue} id="step-2-form" className="space-y-6">
-      <div className="border-b border-slate-100 pb-4">
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-          How was your experience with Mago Labs?
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Please rate each key aspect of our collaboration from 1 (Poor) to 5 (Excellent).
-        </p>
-      </div>
+    <form onSubmit={handleSubmit} noValidate>
+      <StepHeader
+        eyebrow="Step 02 / Your rating"
+        title={
+          <>
+            How was working with <span className="ml-mark">Mago Labs?</span>
+          </>
+        }
+        intro="Be honest. A 3 we can learn from is worth more than a polite 5."
+      />
 
-      <div className="bg-slate-50/50 rounded-2xl p-2 sm:p-4 border border-slate-200/70 shadow-xs">
-        <StarRating
-          id="overall"
-          label="Overall Experience"
-          value={ratings.overall}
-          onChange={(rating) => onUpdate({ overall: rating })}
-          error={errors.overall}
-          description="Your overall satisfaction working with the Mago Labs team"
-        />
+      <StarRating
+        id="overall"
+        size="lg"
+        label="Overall experience"
+        value={ratings.overall}
+        onChange={(n) => onUpdate({ overall: n })}
+        error={overallError}
+      />
 
-        <StarRating
-          id="quality"
-          label="Quality of Work"
-          value={ratings.quality}
-          onChange={(rating) => onUpdate({ quality: rating })}
-          error={errors.quality}
-          description="Technical execution, design aesthetics, and attention to detail"
-        />
-
-        <StarRating
-          id="communication"
-          label="Communication"
-          value={ratings.communication}
-          onChange={(rating) => onUpdate({ communication: rating })}
-          error={errors.communication}
-          description="Clarity, responsiveness, proactive updates, and transparency"
-        />
-
-        <StarRating
-          id="timeliness"
-          label="Timeliness"
-          value={ratings.timeliness}
-          onChange={(rating) => onUpdate({ timeliness: rating })}
-          error={errors.timeliness}
-          description="Adherence to milestones, deadlines, and delivery schedules"
-        />
-
-        <StarRating
-          id="value"
-          label="Value for Money"
-          value={ratings.value}
-          onChange={(rating) => onUpdate({ value: rating })}
-          error={errors.value}
-          description="Return on investment and overall business impact delivered"
-        />
-      </div>
-
-      {submittedAttempt && Object.keys(errors).length > 0 && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200/80 rounded-xl text-xs font-semibold text-rose-600">
-          Please rate all 5 categories above to proceed.
+      <fieldset className="mt-10">
+        <legend className="text-[17px] font-semibold text-ink">Would you recommend us to another business owner?</legend>
+        <div role="radiogroup" className="mt-4 flex flex-wrap gap-2">
+          {RECOMMEND_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={recommendation === opt.value}
+              onClick={() => onRecommendation(opt.value)}
+              className="ml-chip px-5 py-2.5"
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-      )}
+        {recError && <p className="ml-error">{recError}</p>}
+      </fieldset>
 
-      <div className="pt-4 flex items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={onBack}
-          id="btn-step2-back"
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 text-slate-600 hover:text-slate-900 text-xs font-bold uppercase tracking-wider rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors duration-200 cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back</span>
-        </button>
-
-        <button
-          type="submit"
-          id="btn-step2-continue"
-          className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-slate-900 hover:bg-slate-800 active:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs hover:shadow-sm transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-        >
-          <span>Continue</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+      <div className="mt-10 rounded-2xl border border-hairline bg-paper px-4 sm:px-6 py-2">
+        <p className="pt-4 pb-1 text-[15px] font-semibold text-ink">
+          A little more detail
+          <OptionalTag />
+        </p>
+        {DETAILS.map((d) => (
+          <StarRating
+            key={d.key}
+            id={d.key}
+            label={d.label}
+            description={d.description}
+            value={ratings[d.key]}
+            onChange={(n) => onUpdate({ [d.key]: n })}
+          />
+        ))}
       </div>
+
+      <StepNav onBack={onBack} />
     </form>
   );
 };
-

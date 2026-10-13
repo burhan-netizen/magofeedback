@@ -1,118 +1,174 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { MagoLabsLogo } from './MagoLabsLogo';
-import { CheckCircle, ExternalLink, RotateCcw } from 'lucide-react';
 import { FeedbackSubmission } from '../types';
 
+export const GOOGLE_REVIEW_URL = 'https://g.page/r/CXyj1A87sv2BEBM/review';
+const SITE_URL = 'https://www.magolabs.in';
+
 interface SuccessScreenProps {
-  submissionData: FeedbackSubmission | null;
+  submission: FeedbackSubmission | null;
   onReset: () => void;
 }
 
-export const SuccessScreen: React.FC<SuccessScreenProps> = ({
-  submissionData,
-  onReset,
-}) => {
+export const SuccessScreen: React.FC<SuccessScreenProps> = ({ submission, onReset }) => {
+  const [copied, setCopied] = useState(false);
+  const overall = submission?.ratings.overall ?? 0;
+  const happy = overall >= 4;
+  const firstName = submission?.client.name.trim().split(/\s+/)[0] || '';
+  const reviewText = (submission?.testimonial.text || submission?.feedback.liked || '').trim();
+  const referralCount = submission?.referrals.length ?? 0;
+
   useEffect(() => {
-    // Fire celebratory confetti bursts
+    if (!happy) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    const colors = ['#FFC53D', '#0D0D0D', '#E4E1D9'];
+    confetti({ particleCount: 70, spread: 70, origin: { y: 0.35 }, colors, disableForReducedMotion: true });
+  }, [happy]);
+
+  const copyReview = async () => {
+    if (!reviewText) return;
     try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#0f172a', '#334155', '#64748b', '#fbbf24', '#f59e0b'],
-      });
-
-      const timeout = setTimeout(() => {
-        confetti({
-          particleCount: 50,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-        });
-        confetti({
-          particleCount: 50,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-        });
-      }, 400);
-
-      return () => clearTimeout(timeout);
+      await navigator.clipboard.writeText(reviewText);
     } catch {
-      // Graceful fallback if canvas is restricted
+      const ta = document.createElement('textarea');
+      ta.value = reviewText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
     }
-  }, []);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const shareMessage = `I worked with Mago Labs on my website and would recommend them. Worth a look: ${SITE_URL}`;
+  const shareNative = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Mago Labs', text: shareMessage, url: SITE_URL });
+        return;
+      } catch {
+        /* cancelled */
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage)}`, '_blank', 'noopener');
+  };
+
+  const ReviewBlock = (
+    <div className={`rounded-3xl p-6 sm:p-8 text-left ${happy ? 'bg-ink text-paper' : 'border border-hairline bg-white'}`}>
+      <p className={`ml-eyebrow ${happy ? 'text-soft' : ''}`}>{happy ? 'One last favour / 30 seconds' : 'Optional'}</p>
+      <h2 className={`mt-3 text-[24px] sm:text-[28px] leading-tight font-bold ${happy ? 'text-paper' : 'text-ink'}`}>
+        {happy ? (
+          <>
+            Would you say the same on <span className="ml-mark text-ink">Google?</span>
+          </>
+        ) : (
+          'You can also leave a public review on Google.'
+        )}
+      </h2>
+      {happy && (
+        <p className="mt-3 text-[15px] leading-relaxed text-soft">
+          A Google review is how the next business owner finds us and decides to trust us. It helps a small studio
+          more than almost anything else.
+        </p>
+      )}
+
+      <ol className="mt-6 space-y-4">
+        {reviewText && (
+          <li className="flex gap-4">
+            <span className={`font-mono text-[12px] font-bold mt-1 ${happy ? 'text-signal' : 'text-muted'}`}>01</span>
+            <div className="flex-1 min-w-0">
+              <p className={`text-[15px] font-semibold ${happy ? 'text-paper' : 'text-ink'}`}>Copy what you already wrote</p>
+              <p
+                className={`mt-2 text-[14px] italic leading-relaxed rounded-xl p-3 max-h-32 overflow-auto ${
+                  happy ? 'bg-white/5 text-paper/90' : 'bg-paper text-ink'
+                }`}
+              >
+                "{reviewText}"
+              </p>
+              <button
+                type="button"
+                onClick={copyReview}
+                className={`mt-3 ${happy ? 'ml-btn-ghost text-paper border-white/20 hover:bg-white/10' : 'ml-btn-ghost'}`}
+              >
+                {copied ? 'Copied' : 'Copy text'}
+              </button>
+            </div>
+          </li>
+        )}
+        <li className="flex gap-4">
+          <span className={`font-mono text-[12px] font-bold mt-1 ${happy ? 'text-signal' : 'text-muted'}`}>
+            {reviewText ? '02' : '01'}
+          </span>
+          <div className="flex-1">
+            <p className={`text-[15px] font-semibold ${happy ? 'text-paper' : 'text-ink'}`}>
+              {reviewText ? 'Paste it into Google and pick your stars' : 'Pick your stars and add a line or two'}
+            </p>
+            <a
+              href={GOOGLE_REVIEW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                if (reviewText && !copied) copyReview();
+              }}
+              className={`mt-3 ${happy ? 'ml-btn-signal' : 'ml-btn-primary'}`}
+            >
+              Leave a Google review <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </li>
+      </ol>
+    </div>
+  );
 
   return (
-    <div id="success-screen" className="text-center py-8 sm:py-12 px-4 sm:px-8 space-y-8 max-w-xl mx-auto">
-      {/* Brand logo */}
-      <div className="flex justify-center">
-        <MagoLabsLogo size="lg" />
-      </div>
+    <div className="max-w-2xl mx-auto text-center">
+      <p className="ml-eyebrow inline-flex items-center gap-2">
+        <span className="inline-block w-2 h-2 bg-signal" aria-hidden="true" />
+        Received
+      </p>
+      <h1 className="mt-4 text-[34px] sm:text-[44px] leading-[1.08] font-bold tracking-tight text-ink">
+        {happy ? (
+          <>
+            Thank you{firstName ? `, ${firstName}` : ''}. <br className="hidden sm:block" />
+            <span className="ml-mark">That means a lot.</span>
+          </>
+        ) : (
+          <>
+            Thank you{firstName ? `, ${firstName}` : ''}, <br className="hidden sm:block" />
+            for being honest.
+          </>
+        )}
+      </h1>
+      <p className="mt-4 text-[16px] leading-relaxed text-muted max-w-xl mx-auto">
+        {happy
+          ? 'Your feedback has reached Burhan directly. He reads every single one.'
+          : 'Your feedback has reached Burhan directly. He will get in touch personally to talk it through and put things right.'}
+        {referralCount > 0 &&
+          ` And thank you for introducing ${referralCount === 1 ? 'someone' : `${referralCount} people`}. We will look after them.`}
+      </p>
 
-      {/* Success Badge */}
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-600 shadow-xs">
-        <CheckCircle className="w-9 h-9 stroke-[2.2]" />
-      </div>
+      <div className="mt-10">{ReviewBlock}</div>
 
-      {/* Headings */}
-      <div className="space-y-3">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-          Thank You! 🎉
-        </h1>
-        <h3 className="text-lg sm:text-xl font-semibold text-slate-700">
-          Your feedback has been received.
-        </h3>
-      </div>
-
-      {/* Appreciative text */}
-      <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 text-slate-600 text-sm sm:text-base leading-relaxed space-y-4 shadow-xs">
-        <p>
-          We genuinely appreciate you taking the time to share your experience with Mago Labs.
-        </p>
-        <p>
-          Your feedback helps us grow, improve, and continue delivering better work for our clients.
-        </p>
-        <p className="font-semibold text-slate-900 pt-2 border-t border-slate-200/60">
-          Team Mago Labs
-        </p>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-        <a
-          href="https://www.magolabs.in"
-          target="_blank"
-          rel="noopener noreferrer"
-          id="btn-visit-magolabs"
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-slate-900 hover:bg-slate-800 active:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs hover:shadow-sm transition-all duration-200 cursor-pointer"
-        >
-          <span>Visit Mago Labs</span>
-          <ExternalLink className="w-4 h-4" />
-        </a>
-
-        <button
-          type="button"
-          onClick={onReset}
-          id="btn-submit-another"
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-xs font-bold uppercase tracking-wider rounded-xl border border-slate-200 transition-colors cursor-pointer"
-        >
-          <RotateCcw className="w-4 h-4" />
-          <span>Submit Another Response</span>
+      <div className="mt-6 rounded-3xl border border-hairline bg-white p-6 sm:p-8 text-left">
+        <p className="ml-eyebrow">Thought of someone later?</p>
+        <p className="mt-2 text-[16px] font-semibold text-ink">Send them our way with one tap.</p>
+        <p className="mt-1 text-[14px] text-muted">Opens WhatsApp (or your share menu) with a short message ready to send.</p>
+        <button type="button" onClick={shareNative} className="ml-btn-ghost mt-4">
+          Share Mago Labs
         </button>
       </div>
 
-      {/* Submission details helper */}
-      {submissionData && (
-        <div className="text-xs text-slate-400 pt-4">
-          Submission reference ID:{' '}
-          <code className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-mono">
-            MAGO-{new Date().getTime().toString(36).toUpperCase()}
-          </code>
-        </div>
-      )}
+      <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href={SITE_URL} target="_blank" rel="noopener noreferrer" className="ml-link-btn">
+          Visit magolabs.in
+        </a>
+        <span className="hidden sm:inline text-hairline">/</span>
+        <button type="button" onClick={onReset} className="ml-link-btn">
+          Submit another response
+        </button>
+      </div>
     </div>
   );
 };
-

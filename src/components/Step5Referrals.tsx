@@ -1,219 +1,334 @@
-import React from 'react';
-import { ReferralEntry } from '../types';
-import { ArrowLeft, ArrowRight, Plus, Trash2, User, Building2, Phone, Briefcase } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { ReferralEntry, SERVICE_OPTIONS } from '../types';
+import { OptionalTag, StepHeader, StepNav } from './ui';
+
+type Field = keyof Omit<ReferralEntry, 'id'>;
 
 interface Step5Props {
   referrals: ReferralEntry[];
-  onAddReferral: () => void;
+  overall: number;
+  onAddReferral: (preset?: Partial<ReferralEntry>) => string;
   onRemoveReferral: (id: string) => void;
-  onUpdateReferral: (id: string, field: keyof Omit<ReferralEntry, 'id'>, value: string) => void;
+  onUpdateReferral: <K extends Field>(id: string, field: K, value: ReferralEntry[K]) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
+const PROMPTS = [
+  'A friend or relative who runs a business',
+  'A supplier, vendor or partner you work with',
+  'Someone who asked who built your website',
+  'A business whose website is letting them down',
+];
+
+const MAX_REFERRALS = 10;
+
+export const isStarted = (r: ReferralEntry) =>
+  !!(r.name.trim() || r.company.trim() || r.phone.trim() || r.email.trim() || r.relationship.trim() || r.services.length);
+
+export const isComplete = (r: ReferralEntry) => !!(r.name.trim() && (r.phone.trim() || r.email.trim()));
+
+const focusName = (id: string) =>
+  requestAnimationFrame(() => {
+    const el = document.getElementById(`ref-name-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      (el as HTMLInputElement).focus({ preventScroll: true });
+    }
+  });
+
 export const Step5Referrals: React.FC<Step5Props> = ({
   referrals,
+  overall,
   onAddReferral,
   onRemoveReferral,
   onUpdateReferral,
   onNext,
   onBack,
 }) => {
+  const [tried, setTried] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
+
+  const completeCount = referrals.filter(isComplete).length;
+  const hasBroken = referrals.some((r) => isStarted(r) && !isComplete(r));
+
+  const usePrompt = (prompt: string) => {
+    const target = referrals.find((r) => !isStarted(r));
+    if (target) {
+      onUpdateReferral(target.id, 'relationship', prompt);
+      focusName(target.id);
+    } else if (referrals.length < MAX_REFERRALS) {
+      const id = onAddReferral({ relationship: prompt });
+      focusName(id);
+    }
+  };
+
+  const addAnother = () => {
+    const id = onAddReferral();
+    focusName(id);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setTried(true);
+    if (hasBroken) {
+      const first = referrals.find((r) => isStarted(r) && !isComplete(r));
+      if (first) focusName(first.id);
+      return;
+    }
+    if (completeCount === 0 && !showNudge) {
+      setShowNudge(true);
+      requestAnimationFrame(() =>
+        document.getElementById('referral-nudge')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      );
+      return;
+    }
     onNext();
   };
 
+  const happy = overall >= 4;
+
   return (
-    <form onSubmit={handleSubmit} id="step-5-form" className="space-y-6">
-      {/* Header and Introductory copy */}
-      <div className="border-b border-slate-100 pb-5">
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          <span>🤝</span> Help Us Grow Through Referrals
-        </h2>
-        <div className="mt-3 p-4 bg-slate-50/90 border-l-4 border-slate-900 rounded-r-xl text-sm text-slate-700 leading-relaxed">
-          Many of our projects come through recommendations from satisfied clients. If you know any{' '}
-          <strong className="text-slate-900 font-semibold">
-            business owners, professionals, or companies
-          </strong>{' '}
-          that could benefit from a professional website, e-commerce store, SEO, branding, or digital marketing services, we&apos;d greatly appreciate an introduction.
+    <form onSubmit={handleSubmit} noValidate>
+      <StepHeader
+        eyebrow="Step 05 / Pass it on"
+        title={
+          <>
+            Who else deserves {happy ? 'a result like yours?' : 'a website that works?'}{' '}
+            <span className="ml-mark">One or two names</span> is all we ask.
+          </>
+        }
+        intro={
+          <>
+            <p>
+              Mago Labs is a small studio. Nearly every new project starts the same way: a happy client mentions our
+              name to someone they know. It is the single most helpful thing you can do for us, and it takes under a
+              minute.
+            </p>
+          </>
+        }
+      />
+
+      {/* Memory joggers */}
+      <div>
+        <p className="ml-eyebrow">Need a nudge? Think of</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {PROMPTS.map((p) => (
+            <button key={p} type="button" className="ml-chip" onClick={() => usePrompt(p)}>
+              <span aria-hidden="true" className="text-[#e0a92a] font-bold">+</span>
+              {p}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Referrals dynamic list */}
-      <div className="space-y-5" id="referrals-container">
+      {/* Referral cards */}
+      <div className="mt-8 space-y-5">
         <AnimatePresence initial={false}>
-          {referrals.map((referral, index) => (
-            <motion.div
-              key={referral.id}
-              initial={{ opacity: 0, y: 12, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -12, scale: 0.96 }}
-              transition={{ duration: 0.2 }}
-              id={`referral-card-${index + 1}`}
-              className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs relative hover:border-slate-300 transition-colors"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center">
-                    {index + 1}
-                  </span>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
-                    Referral #{index + 1}
-                  </h3>
+          {referrals.map((r, index) => {
+            const broken = tried && isStarted(r) && !isComplete(r);
+            return (
+              <motion.div
+                key={r.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`rounded-2xl border bg-paper p-4 sm:p-6 ${broken ? 'border-danger' : isComplete(r) ? 'border-ink' : 'border-hairline'}`}
+              >
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <p className="ml-eyebrow flex items-center gap-2 text-ink">
+                    <span className={`inline-block w-2 h-2 ${isComplete(r) ? 'bg-signal' : 'bg-hairline'}`} aria-hidden="true" />
+                    Referral {String(index + 1).padStart(2, '0')}
+                    {index === 1 && !isStarted(r) && <span className="text-soft font-semibold">/ optional</span>}
+                  </p>
+                  {referrals.length > 1 && (
+                    <button type="button" className="ml-link-btn" onClick={() => onRemoveReferral(r.id)}>
+                      Remove
+                    </button>
+                  )}
                 </div>
 
-                <button
-                  type="button"
-                  id={`btn-remove-referral-${index + 1}`}
-                  onClick={() => onRemoveReferral(referral.id)}
-                  aria-label={`Remove Referral #${index + 1}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remove</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Referral Name */}
-                <div>
-                  <label
-                    htmlFor={`referral-name-${referral.id}`}
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
-                  >
-                    Name
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <User className="w-3.5 h-3.5" />
-                    </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor={`ref-name-${r.id}`} className="ml-label">
+                      Their name
+                    </label>
                     <input
-                      type="text"
-                      id={`referral-name-${referral.id}`}
-                      value={referral.name}
-                      onChange={(e) => onUpdateReferral(referral.id, 'name', e.target.value)}
-                      placeholder="Contact Name"
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/50 text-slate-900 rounded-xl border border-slate-200 text-sm transition-all focus:outline-none focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/10"
+                      id={`ref-name-${r.id}`}
+                      className="ml-input"
+                      value={r.name}
+                      onChange={(e) => onUpdateReferral(r.id, 'name', e.target.value)}
+                      placeholder="e.g. Jordan Lee"
+                      aria-invalid={broken && !r.name.trim()}
                     />
                   </div>
-                </div>
-
-                {/* Referral Company */}
-                <div>
-                  <label
-                    htmlFor={`referral-company-${referral.id}`}
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
-                  >
-                    Company
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Building2 className="w-3.5 h-3.5" />
-                    </div>
+                  <div>
+                    <label htmlFor={`ref-company-${r.id}`} className="ml-label">
+                      Their business
+                      <OptionalTag />
+                    </label>
                     <input
-                      type="text"
-                      id={`referral-company-${referral.id}`}
-                      value={referral.company}
-                      onChange={(e) => onUpdateReferral(referral.id, 'company', e.target.value)}
-                      placeholder="Company Name"
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/50 text-slate-900 rounded-xl border border-slate-200 text-sm transition-all focus:outline-none focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/10"
+                      id={`ref-company-${r.id}`}
+                      className="ml-input"
+                      value={r.company}
+                      onChange={(e) => onUpdateReferral(r.id, 'company', e.target.value)}
+                      placeholder="e.g. Lee Plumbing & Heating"
                     />
                   </div>
-                </div>
-
-                {/* Referral Phone */}
-                <div>
-                  <label
-                    htmlFor={`referral-phone-${referral.id}`}
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
-                  >
-                    Phone
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Phone className="w-3.5 h-3.5" />
-                    </div>
+                  <div>
+                    <label htmlFor={`ref-phone-${r.id}`} className="ml-label">
+                      Phone <span className="font-normal text-muted text-[13px]">with country code</span>
+                    </label>
                     <input
+                      id={`ref-phone-${r.id}`}
                       type="tel"
-                      id={`referral-phone-${referral.id}`}
-                      value={referral.phone}
-                      onChange={(e) => onUpdateReferral(referral.id, 'phone', e.target.value)}
-                      placeholder="+91 98765 43210"
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/50 text-slate-900 rounded-xl border border-slate-200 text-sm transition-all focus:outline-none focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/10"
+                      inputMode="tel"
+                      className="ml-input"
+                      value={r.phone}
+                      onChange={(e) => onUpdateReferral(r.id, 'phone', e.target.value)}
+                      placeholder="+1 512 555 0142"
+                      aria-invalid={broken && !r.phone.trim() && !r.email.trim()}
                     />
                   </div>
+                  <div>
+                    <label htmlFor={`ref-email-${r.id}`} className="ml-label">
+                      or Email
+                    </label>
+                    <input
+                      id={`ref-email-${r.id}`}
+                      type="email"
+                      inputMode="email"
+                      className="ml-input"
+                      value={r.email}
+                      onChange={(e) => onUpdateReferral(r.id, 'email', e.target.value)}
+                      placeholder="jordan@leeplumbing.com"
+                      aria-invalid={broken && !r.phone.trim() && !r.email.trim()}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor={`ref-rel-${r.id}`} className="ml-label">
+                      How do you know them?
+                      <OptionalTag />
+                    </label>
+                    <input
+                      id={`ref-rel-${r.id}`}
+                      className="ml-input"
+                      value={r.relationship}
+                      onChange={(e) => onUpdateReferral(r.id, 'relationship', e.target.value)}
+                      placeholder="Friend, supplier, neighbour..."
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <p className="ml-label">
+                      What might they need?
+                      <OptionalTag />
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {SERVICE_OPTIONS.map((s) => {
+                        const on = r.services.includes(s);
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            aria-pressed={on}
+                            className="ml-chip"
+                            onClick={() =>
+                              onUpdateReferral(
+                                r.id,
+                                'services',
+                                on ? r.services.filter((x) => x !== s) : [...r.services, s]
+                              )
+                            }
+                          >
+                            {s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <label className="sm:col-span-2 flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={r.mentionMe}
+                      onChange={(e) => onUpdateReferral(r.id, 'mentionMe', e.target.checked)}
+                      className="w-4 h-4 accent-[#0d0d0d] cursor-pointer"
+                    />
+                    <span className="text-[14px] text-ink">You can tell them I suggested you</span>
+                  </label>
                 </div>
 
-                {/* Referral Service */}
-                <div>
-                  <label
-                    htmlFor={`referral-service-${referral.id}`}
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
-                  >
-                    What service might they need?
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Briefcase className="w-3.5 h-3.5" />
-                    </div>
-                    <input
-                      type="text"
-                      id={`referral-service-${referral.id}`}
-                      value={referral.service}
-                      onChange={(e) => onUpdateReferral(referral.id, 'service', e.target.value)}
-                      placeholder="e.g. Website, E-commerce, Branding, Software..."
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50/50 text-slate-900 rounded-xl border border-slate-200 text-sm transition-all focus:outline-none focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/10"
-                    />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+                {broken && (
+                  <p className="ml-error">
+                    {!r.name.trim() ? 'Add their name, ' : ''}
+                    {!r.phone.trim() && !r.email.trim() ? 'add a phone number or email ' : ''}
+                    so we can reach them. Or tap Remove if you changed your mind.
+                  </p>
+                )}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
 
-        {/* Add Referral Button */}
-        <div className="pt-1">
-          <button
-            type="button"
-            id={referrals.length === 0 ? 'btn-add-first-referral' : 'btn-add-another-referral'}
-            onClick={onAddReferral}
-            className={`w-full py-4 px-6 rounded-2xl border-2 border-dashed transition-all duration-200 flex items-center justify-center gap-2.5 font-bold text-xs uppercase tracking-wider cursor-pointer ${
-              referrals.length === 0
-                ? 'border-slate-300 bg-white hover:border-slate-900 hover:bg-slate-50 text-slate-900 shadow-xs'
-                : 'border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-400 text-slate-700'
-            }`}
-          >
-            <Plus className="w-4 h-4" />
-            <span>
-              {referrals.length === 0 ? '+ Add a Referral' : '+ Add Another Referral'}
-            </span>
+        {referrals.length < MAX_REFERRALS && (
+          <button type="button" onClick={addAnother} className="ml-btn-ghost w-full border-dashed">
+            <span aria-hidden="true">+</span> Add another person
           </button>
+        )}
+      </div>
+
+      {/* Progress feedback */}
+      {completeCount > 0 && (
+        <p className="mt-6 text-[15px] font-medium text-ink flex items-start gap-3" aria-live="polite">
+          <span className="mt-1.5 inline-block w-1 h-5 bg-signal shrink-0" aria-hidden="true" />
+          {completeCount === 1
+            ? 'One name added. Thank you. If a second person comes to mind, add them too.'
+            : `${completeCount} names added. That genuinely makes our week. Thank you.`}
+        </p>
+      )}
+
+      {/* Our promise */}
+      <div className="mt-6 rounded-2xl bg-ink text-paper p-5 sm:p-6">
+        <p className="ml-eyebrow text-soft">Our promise to them</p>
+        <p className="mt-2 text-[15px] leading-relaxed">
+          One friendly message, mentioning you only if you allow it. No pressure, no spam, no endless follow ups. If
+          they are not interested, that is the end of it.
+        </p>
+      </div>
+
+      {showNudge && completeCount === 0 && (
+        <div id="referral-nudge" className="mt-6 rounded-2xl border border-signal bg-signal-soft p-5 sm:p-6">
+          <p className="text-[16px] font-semibold text-ink">Before you skip, take ten seconds.</p>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-ink/80">
+            Has anyone asked who built your website? Is there a supplier or a friend whose business you would like to
+            see grow? Even one name helps a small studio more than you would think.
+          </p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+            <button
+              type="button"
+              className="ml-btn-primary"
+              onClick={() => {
+                const target = referrals[0];
+                if (target) focusName(target.id);
+                else addAnother();
+              }}
+            >
+              Add a name
+            </button>
+            <button type="button" className="ml-link-btn" onClick={onNext}>
+              No one comes to mind, skip
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="pt-4 flex items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={onBack}
-          id="btn-step5-back"
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 text-slate-600 hover:text-slate-900 text-xs font-bold uppercase tracking-wider rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors duration-200 cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back</span>
-        </button>
-
-        <button
-          type="submit"
-          id="btn-step5-continue"
-          className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-slate-900 hover:bg-slate-800 active:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs hover:shadow-sm transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-        >
-          <span>Continue</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
+      <StepNav
+        onBack={onBack}
+        continueLabel={
+          completeCount === 0 ? 'Continue' : `Continue with ${completeCount} referral${completeCount > 1 ? 's' : ''}`
+        }
+      />
     </form>
   );
 };
-

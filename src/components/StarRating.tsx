@@ -1,163 +1,86 @@
 import React, { useState } from 'react';
-import { Star } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-
-interface StarRatingProps {
-  id: string;
-  label: string;
-  value: number;
-  onChange: (rating: number) => void;
-  required?: boolean;
-  error?: string;
-  description?: string;
-}
 
 const RATING_LABELS: Record<number, string> = {
   1: 'Poor',
   2: 'Fair',
   3: 'Good',
-  4: 'Very Good',
+  4: 'Very good',
   5: 'Excellent',
 };
+
+interface StarRatingProps {
+  id: string;
+  label: string;
+  description?: string;
+  value: number;
+  onChange: (rating: number) => void;
+  size?: 'lg' | 'sm';
+  error?: string;
+}
+
+const StarIcon: React.FC<{ filled: boolean; className?: string }> = ({ filled, className }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      d="M12 2.8l2.83 5.74 6.33.92-4.58 4.46 1.08 6.3L12 17.25l-5.66 2.97 1.08-6.3L2.84 9.46l6.33-.92L12 2.8z"
+      fill={filled ? 'var(--color-signal)' : 'transparent'}
+      stroke={filled ? '#e0a92a' : 'var(--color-soft)'}
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 export const StarRating: React.FC<StarRatingProps> = ({
   id,
   label,
+  description,
   value,
   onChange,
-  required = true,
+  size = 'sm',
   error,
-  description,
 }) => {
-  const [hoverValue, setHoverValue] = useState<number | null>(null);
-
-  const activeValue = hoverValue !== null ? hoverValue : value;
-  const currentLabel = activeValue > 0 ? RATING_LABELS[activeValue] : '';
+  const [hover, setHover] = useState<number | null>(null);
+  const active = hover ?? value;
+  const big = size === 'lg';
 
   return (
-    <div className="py-4 border-b border-slate-100 last:border-b-0" id={`rating-group-${id}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4 mb-2.5">
+    <div className={big ? '' : 'py-4 border-t border-hairline first:border-t-0'}>
+      <div className="flex items-baseline justify-between gap-3">
         <div>
-          <label htmlFor={`star-rating-${id}`} className="text-sm sm:text-base font-medium text-slate-800 flex items-center gap-1.5">
+          <p id={`${id}-label`} className={big ? 'text-[17px] font-semibold text-ink' : 'text-[15px] font-medium text-ink'}>
             {label}
-            {required && <span className="text-amber-500 text-sm font-normal" title="Required">*</span>}
-          </label>
-          {description && (
-            <p className="text-xs text-slate-400 mt-0.5">{description}</p>
-          )}
+          </p>
+          {description && <p className="text-[13px] text-muted mt-0.5">{description}</p>}
         </div>
-
-        {/* Rating descriptor badge */}
-        <div className="min-w-24 text-left sm:text-right h-6 flex items-center sm:justify-end">
-          <AnimatePresence mode="wait">
-            {currentLabel ? (
-              <motion.span
-                key={activeValue}
-                initial={{ opacity: 0, scale: 0.85, y: 2 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.85, y: -2 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                  activeValue >= 4
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                    : activeValue === 3
-                    ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                    : 'bg-orange-50 text-orange-700 border border-orange-200/60'
-                }`}
-              >
-                {activeValue} - {currentLabel}
-              </motion.span>
-            ) : (
-              <span className="text-[11px] text-slate-400 font-medium tracking-tight">Select 1–5 stars</span>
-            )}
-          </AnimatePresence>
-        </div>
+        <span className="ml-eyebrow shrink-0 min-w-[72px] text-right" aria-live="polite">
+          {active ? RATING_LABELS[active] : ''}
+        </span>
       </div>
 
-      {/* Stars row with subtle spring micro-interactions */}
       <div
-        id={`star-rating-${id}`}
         role="radiogroup"
-        aria-label={`${label} rating out of 5 stars`}
-        className="flex items-center gap-1.5 sm:gap-2 mt-1 focus:outline-none"
-        onMouseLeave={() => setHoverValue(null)}
+        aria-labelledby={`${id}-label`}
+        className={`flex items-center ${big ? 'gap-2 sm:gap-3 mt-4' : 'gap-1 mt-2'}`}
+        onMouseLeave={() => setHover(null)}
       >
-        {[1, 2, 3, 4, 5].map((starIndex) => {
-          const isFilled = starIndex <= activeValue;
-          const isSelected = starIndex === value;
-
-          return (
-            <motion.button
-              key={starIndex}
-              type="button"
-              id={`star-${id}-${starIndex}`}
-              role="radio"
-              aria-checked={isSelected}
-              aria-label={`${starIndex} Star - ${RATING_LABELS[starIndex]}`}
-              whileHover={{ scale: 1.14 }}
-              whileTap={{ scale: 0.86 }}
-              transition={{ type: 'spring', stiffness: 450, damping: 22 }}
-              onClick={() => onChange(starIndex)}
-              onMouseEnter={() => setHoverValue(starIndex)}
-              onFocus={() => setHoverValue(starIndex)}
-              onBlur={() => setHoverValue(null)}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  onChange(Math.min(5, (value || 0) + 1));
-                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  onChange(Math.max(1, (value || 1) - 1));
-                }
-              }}
-              className={`group relative p-2 sm:p-2.5 rounded-xl transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 touch-manipulation cursor-pointer ${
-                isFilled
-                  ? 'bg-amber-50/80 text-amber-500 hover:bg-amber-100/90 shadow-xs'
-                  : 'bg-slate-100/70 text-slate-300 hover:bg-slate-200/60 hover:text-slate-400'
-              }`}
-            >
-              <motion.div
-                animate={
-                  isSelected
-                    ? { scale: [1, 1.25, 1], rotate: [0, -8, 8, 0] }
-                    : { scale: isFilled ? 1.05 : 1, rotate: 0 }
-                }
-                transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-              >
-                <Star
-                  className={`w-6 h-6 sm:w-7 sm:h-7 transition-colors duration-150 ${
-                    isFilled
-                      ? 'fill-amber-400 text-amber-400'
-                      : 'fill-transparent text-slate-300 group-hover:text-slate-400'
-                  }`}
-                  strokeWidth={1.75}
-                />
-              </motion.div>
-
-              {/* Floating Tooltip */}
-              <div
-                role="tooltip"
-                className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-semibold tracking-wide rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none whitespace-nowrap z-20 translate-y-1 group-hover:translate-y-0"
-              >
-                {starIndex} - {RATING_LABELS[starIndex]}
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 border-solid border-b-slate-900 border-b-4 border-x-transparent border-x-4 border-t-0" />
-              </div>
-
-              <span className="sr-only">
-                {starIndex} of 5 stars ({RATING_LABELS[starIndex]})
-              </span>
-            </motion.button>
-          );
-        })}
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={value === n}
+            aria-label={`${n} of 5, ${RATING_LABELS[n]}`}
+            onClick={() => onChange(value === n && !big ? 0 : n)}
+            onMouseEnter={() => setHover(n)}
+            className={`rounded-xl transition-transform duration-150 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink touch-manipulation cursor-pointer ${
+              big ? 'p-1.5 sm:p-2' : 'p-1'
+            }`}
+          >
+            <StarIcon filled={n <= active} className={big ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-7 h-7'} />
+          </button>
+        ))}
       </div>
-
-      {error && (
-        <p className="text-xs text-rose-500 font-semibold mt-1.5 flex items-center gap-1">
-          <span>•</span> {error}
-        </p>
-      )}
+      {error && <p className="ml-error">{error}</p>}
     </div>
   );
 };
-
-

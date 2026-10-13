@@ -1,6 +1,6 @@
 /**
  * IndexedDB storage layer for Mago Labs Feedback & Referral form.
- * Provides persistent asynchronous storage for large referral lists and client drafts.
+ * Keeps an in-progress draft on the client's device so they can close the page and resume later.
  */
 
 const DB_NAME = 'MagoLabsFeedbackDB';
@@ -10,7 +10,6 @@ const STORE_SUBMISSIONS = 'submissions';
 
 const DRAFT_KEY = 'current_feedback_draft';
 const LEGACY_DRAFT_KEY = 'mago_labs_feedback_draft_v1';
-const LEGACY_SUBMISSIONS_KEY = 'mago_labs_feedback_submissions_v1';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -152,41 +151,4 @@ export async function clearDraftDB(): Promise<void> {
   } catch {
     // ignore
   }
-}
-
-/**
- * Save final submitted feedback to IndexedDB
- */
-export async function saveSubmissionDB<T extends { id?: string }>(submission: T): Promise<void> {
-  const submissionWithId = {
-    ...submission,
-    id: submission.id || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    submittedAt: new Date().toISOString(),
-  };
-
-  try {
-    const db = await getDB();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_SUBMISSIONS, 'readwrite');
-      const store = tx.objectStore(STORE_SUBMISSIONS);
-      const req = store.put(submissionWithId);
-
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch {
-    // Fallback to localStorage
-    try {
-      const existingRaw = localStorage.getItem(LEGACY_SUBMISSIONS_KEY);
-      const existing: unknown[] = existingRaw ? JSON.parse(existingRaw) : [];
-      existing.push(submissionWithId);
-      localStorage.setItem(LEGACY_SUBMISSIONS_KEY, JSON.stringify(existing));
-    } catch {
-      // ignore
-    }
-  }
-
-  // Always ensure the draft is cleared upon submission
-  await clearDraftDB();
 }

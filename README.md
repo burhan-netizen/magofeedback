@@ -1,20 +1,52 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Mago Labs client feedback form
 
-# Run and deploy your AI Studio app
+A six step feedback, testimonial and referral form for Mago Labs clients (React + Vite, deployed on Vercel).
+Each submission is emailed to Burhan through Resend and, optionally, logged to a Google Sheet.
 
-This contains everything you need to run your app locally.
+## Flow
 
-View your app in AI Studio: https://ai.studio/apps/fb2843d0-b65f-4666-938e-f3b537174be9
+1. About you (name, business, role, email)
+2. Rating (overall stars, would you recommend, optional detail stars)
+3. In your words (liked most, could do better)
+4. Testimonial (text, optional photo or logo, permission to publish)
+5. Referrals (two cards ready, memory prompts, gentle nudge before skipping)
+6. Review and send, then a thank you screen with a Google review prompt and a share button
 
-## Run Locally
+## Personal links
 
-**Prerequisites:**  Node.js
+Prefill the client's details by adding them to the link:
 
+```
+https://YOUR-DOMAIN/?name=Rahul%20Shah&company=Modi%20Foods&email=rahul@example.com
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Supported: `name`, `company`, `role`, `email`. Spaces become `%20`.
+
+## Environment variables (Vercel > Settings > Environment Variables)
+
+| Variable | Required | What it does |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Yes | Sends the submission email |
+| `FEEDBACK_TO_EMAIL` | No | Defaults to burhan@magolabs.in |
+| `FEEDBACK_FROM_EMAIL` | Recommended | A sender on a domain verified in Resend, e.g. `Mago Labs <feedback@magolabs.in>` |
+| `SHEETS_WEBHOOK_URL` | No | Google Apps Script web app URL, see `google-sheets/apps-script.gs` |
+| `SHEETS_WEBHOOK_SECRET` | With the above | Must match `SECRET` in the Apps Script |
+
+## Spam protection
+
+Hidden honeypot field, a minimum fill time, and a limit of 5 submissions per connection every 10 minutes.
+Bots get a fake success and nothing is sent.
+
+## Google review link
+
+Set in `src/components/SuccessScreen.tsx` (`GOOGLE_REVIEW_URL`).
+Everyone sees the review option (Google does not allow showing it only to happy clients); 4 and 5 star clients see it front and centre.
+
+## Local development
+
+```
+npm install
+npm run dev
+```
+
+Put the variables above in a `.env` file for local testing.

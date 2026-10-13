@@ -1,208 +1,174 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { MagoLabsLogo } from './components/MagoLabsLogo';
 import { ProgressIndicator } from './components/ProgressIndicator';
 import { Step1AboutYou } from './components/Step1AboutYou';
 import { Step2Experience } from './components/Step2Experience';
 import { Step3Feedback } from './components/Step3Feedback';
 import { Step4Testimonial } from './components/Step4Testimonial';
-import { Step5Referrals } from './components/Step5Referrals';
+import { Step5Referrals, isComplete } from './components/Step5Referrals';
 import { Step6Review } from './components/Step6Review';
 import { SuccessScreen } from './components/SuccessScreen';
 import {
   ClientInfo,
-  Ratings,
   FeedbackData,
-  TestimonialData,
-  ReferralEntry,
-  FormStep,
   FeedbackSubmission,
+  FormStep,
+  Ratings,
+  RecommendationOption,
+  ReferralEntry,
+  TestimonialData,
 } from './types';
-import { submitFeedback, saveDraft, loadDraft, clearDraft } from './services/feedbackService';
-import { ExternalLink, ShieldCheck } from 'lucide-react';
+import { clearDraft, loadDraft, saveDraft, submitFeedback } from './services/feedbackService';
 
 interface FormStateDraft {
   step: FormStep;
   highestStepReached: FormStep;
-  client: ClientInfo;
-  ratings: Ratings;
-  feedback: FeedbackData;
-  testimonial: TestimonialData;
-  referrals: ReferralEntry[];
+  client: Partial<ClientInfo>;
+  ratings: Partial<Ratings>;
+  feedback: Partial<FeedbackData>;
+  testimonial: Partial<TestimonialData>;
+  referrals: Array<Partial<ReferralEntry>>;
+  startedAt?: number;
+}
+
+const EMPTY_CLIENT: ClientInfo = { name: '', company: '', role: '', email: '' };
+const EMPTY_RATINGS: Ratings = { overall: 0, quality: 0, communication: 0, timeliness: 0, value: 0 };
+const EMPTY_FEEDBACK: FeedbackData = { liked: '', improvements: '', recommendation: '' };
+const EMPTY_TESTIMONIAL: TestimonialData = { text: '', permission: true, photo: '', photoName: '' };
+
+const newReferral = (preset: Partial<ReferralEntry> = {}): ReferralEntry => ({
+  id: `ref_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  name: '',
+  company: '',
+  phone: '',
+  email: '',
+  relationship: '',
+  services: [],
+  mentionMe: true,
+  ...preset,
+});
+
+/** Lets you send personal links like ?name=Rahul&company=Modi%20Foods */
+function readPrefill(): Partial<ClientInfo> {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const out: Partial<ClientInfo> = {};
+    (['name', 'company', 'role', 'email'] as const).forEach((k) => {
+      const v = p.get(k);
+      if (v) out[k] = v.slice(0, 120);
+    });
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 export default function App() {
-  const stepCardRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState<FormStep>(1);
   const [highestStepReached, setHighestStepReached] = useState<FormStep>(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionResult, setSubmissionResult] = useState<FeedbackSubmission | null>(null);
+  const [submitError, setSubmitError] = useState('');
+  const [submission, setSubmission] = useState<FeedbackSubmission | null>(null);
 
-  // Form State
-  const [client, setClient] = useState<ClientInfo>({
-    name: '',
-    company: '',
-    email: '',
-  });
-
-  const [ratings, setRatings] = useState<Ratings>({
-    overall: 0,
-    quality: 0,
-    communication: 0,
-    timeliness: 0,
-    value: 0,
-  });
-
-  const [feedback, setFeedback] = useState<FeedbackData>({
-    liked: '',
-    improvements: '',
-    recommendation: '',
-  });
-
-  const [testimonial, setTestimonial] = useState<TestimonialData>({
-    text: '',
-    // No longer asked as a separate opt-in — sharing a testimonial implies
-    // permission to use it.
-    permission: true,
-  });
-
+  const [client, setClient] = useState<ClientInfo>(EMPTY_CLIENT);
+  const [ratings, setRatings] = useState<Ratings>(EMPTY_RATINGS);
+  const [feedback, setFeedback] = useState<FeedbackData>(EMPTY_FEEDBACK);
+  const [testimonial, setTestimonial] = useState<TestimonialData>(EMPTY_TESTIMONIAL);
   const [referrals, setReferrals] = useState<ReferralEntry[]>([]);
+  const [startedAt, setStartedAt] = useState<number>(() => Date.now());
+  const [honeypot, setHoneypot] = useState('');
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
 
-  // Load draft from IndexedDB on initial mount
+  // Restore a saved draft, then apply any personal-link prefill on top.
   useEffect(() => {
-    let isMounted = true;
-    async function restoreDraft() {
+    let alive = true;
+    (async () => {
+      const prefill = readPrefill();
       try {
         const saved = await loadDraft<FormStateDraft>();
-        if (saved && isMounted) {
-          if (saved.client) setClient(saved.client);
-          if (saved.ratings) setRatings(saved.ratings);
-          if (saved.feedback) setFeedback(saved.feedback);
-          if (saved.testimonial) setTestimonial(saved.testimonial);
-          if (Array.isArray(saved.referrals)) setReferrals(saved.referrals);
+        if (saved && alive) {
+          setClient({ ...EMPTY_CLIENT, ...saved.client, ...prefill });
+          setRatings({ ...EMPTY_RATINGS, ...saved.ratings });
+          setFeedback({ ...EMPTY_FEEDBACK, ...saved.feedback });
+          setTestimonial({ ...EMPTY_TESTIMONIAL, ...saved.testimonial });
+          if (Array.isArray(saved.referrals)) {
+            setReferrals(
+              saved.referrals.map((r) => ({
+                ...newReferral(),
+                ...r,
+                services: Array.isArray(r.services) ? r.services : [],
+              }))
+            );
+          }
           if (saved.highestStepReached) setHighestStepReached(saved.highestStepReached);
           if (saved.step && saved.step <= 6) setCurrentStep(saved.step);
+          if (saved.startedAt) setStartedAt(saved.startedAt);
+        } else if (alive) {
+          setClient({ ...EMPTY_CLIENT, ...prefill });
         }
-      } catch (err) {
-        console.warn('Draft restoration error:', err);
+      } catch {
+        if (alive) setClient({ ...EMPTY_CLIENT, ...prefill });
       } finally {
-        if (isMounted) {
-          setIsDraftLoaded(true);
-        }
+        if (alive) setIsDraftLoaded(true);
       }
-    }
-
-    restoreDraft();
+    })();
     return () => {
-      isMounted = false;
+      alive = false;
     };
   }, []);
 
-  // Auto-save draft to IndexedDB on state change (only after initial load has finished)
   useEffect(() => {
-    if (isDraftLoaded && !isSubmitted) {
-      saveDraft({
-        step: currentStep,
-        highestStepReached,
-        client,
-        ratings,
-        feedback,
-        testimonial,
-        referrals,
-      });
-    }
-  }, [
-    isDraftLoaded,
-    currentStep,
-    highestStepReached,
-    client,
-    ratings,
-    feedback,
-    testimonial,
-    referrals,
-    isSubmitted,
-  ]);
+    if (!isDraftLoaded || isSubmitted) return;
+    saveDraft({ step: currentStep, highestStepReached, client, ratings, feedback, testimonial, referrals, startedAt });
+  }, [isDraftLoaded, isSubmitted, currentStep, highestStepReached, client, ratings, feedback, testimonial, referrals, startedAt]);
 
-  const scrollToStepCard = () => {
-    // Scroll the step form into view just below the sticky header, instead
-    // of jumping to the very top of the page (which would land above the
-    // hero text and progress indicator, forcing an extra manual scroll).
+  // Open the referral step with two cards ready, so one or two names feels like the norm.
+  useEffect(() => {
+    if (currentStep === 5 && referrals.length === 0) {
+      setReferrals([newReferral(), newReferral()]);
+    }
+  }, [currentStep, referrals.length]);
+
+  const scrollToCard = () =>
     requestAnimationFrame(() => {
-      if (stepCardRef.current) {
-        const headerOffset = 96;
-        const top = stepCardRef.current.getBoundingClientRect().top + window.pageYOffset - headerOffset;
-        window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      const el = cardRef.current;
+      if (!el) return window.scrollTo({ top: 0, behavior: 'smooth' });
+      const top = el.getBoundingClientRect().top + window.scrollY - 88;
+      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
     });
-  };
 
-  const handleNext = () => {
-    const nextStep = (currentStep + 1) as FormStep;
-    setCurrentStep(nextStep);
-    setHighestStepReached((prev) => (nextStep > prev ? nextStep : prev));
-    scrollToStepCard();
+  const goTo = (step: FormStep) => {
+    setCurrentStep(step);
+    setHighestStepReached((prev) => (step > prev ? step : prev));
+    setSubmitError('');
+    scrollToCard();
   };
+  const handleNext = () => goTo(Math.min(6, currentStep + 1) as FormStep);
+  const handleBack = () => currentStep > 1 && goTo((currentStep - 1) as FormStep);
+  const handleStepJump = (step: FormStep) => step <= highestStepReached && goTo(step);
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep((currentStep - 1) as FormStep);
-      scrollToStepCard();
-    }
+  const addReferral = (preset?: Partial<ReferralEntry>) => {
+    const r = newReferral(preset);
+    setReferrals((prev) => [...prev, r]);
+    return r.id;
   };
+  const removeReferral = (id: string) => setReferrals((prev) => prev.filter((r) => r.id !== id));
+  const updateReferral = <K extends keyof Omit<ReferralEntry, 'id'>>(id: string, field: K, value: ReferralEntry[K]) =>
+    setReferrals((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
 
-  const handleStepJump = (step: FormStep) => {
-    if (step <= highestStepReached) {
-      setCurrentStep(step);
-      scrollToStepCard();
-    }
-  };
-
-  // Referral manipulation
-  const handleAddReferral = () => {
-    const newReferral: ReferralEntry = {
-      id: `ref_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: '',
-      company: '',
-      phone: '',
-      service: '',
-    };
-    setReferrals((prev) => [...prev, newReferral]);
-  };
-
-  const handleRemoveReferral = (id: string) => {
-    setReferrals((prev) => prev.filter((r) => r.id !== id));
-  };
-
-  const handleUpdateReferral = (
-    id: string,
-    field: keyof Omit<ReferralEntry, 'id'>,
-    value: string
-  ) => {
-    setReferrals((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [field]: value } : r))
-    );
-  };
-
-  // Final submission
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const validReferrals = referrals
-      .filter((r) => r.name.trim() || r.company.trim() || r.phone.trim() || r.service.trim())
-      .map(({ name, company, phone, service }) => ({
-        name: name.trim(),
-        company: company.trim(),
-        phone: phone.trim(),
-        service: service.trim(),
-      }));
+    setSubmitError('');
+    const hasTestimonial = !!(testimonial.text.trim() || testimonial.photo);
 
-    const submissionPayload: FeedbackSubmission = {
+    const payload: FeedbackSubmission = {
       client: {
         name: client.name.trim(),
         company: client.company.trim(),
+        role: client.role.trim(),
         email: client.email.trim(),
       },
       ratings: { ...ratings },
@@ -213,20 +179,33 @@ export default function App() {
       },
       testimonial: {
         text: testimonial.text.trim(),
-        permission: testimonial.permission,
+        permission: hasTestimonial ? testimonial.permission : false,
+        photo: testimonial.photo || undefined,
+        photoName: testimonial.photoName || undefined,
       },
-      referrals: validReferrals,
-      submittedAt: new Date().toISOString(),
+      referrals: referrals.filter(isComplete).map(({ id: _id, ...r }) => ({
+        ...r,
+        name: r.name.trim(),
+        company: r.company.trim(),
+        phone: r.phone.trim(),
+        email: r.email.trim(),
+        relationship: r.relationship.trim(),
+      })),
+      hp: honeypot,
+      startedAt,
     };
 
     try {
-      await submitFeedback(submissionPayload);
-      setSubmissionResult(submissionPayload);
+      await submitFeedback(payload);
+      setSubmission(payload);
       setIsSubmitted(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (error) {
-      console.error('Submission failed', error);
-      alert('There was an issue submitting your feedback. Please try again.');
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error && err.message
+          ? `${err.message} Your answers are saved, so you can try again in a moment. If it keeps failing, email burhan@magolabs.in.`
+          : 'Something went wrong. Your answers are saved, so please try again in a moment.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -234,143 +213,105 @@ export default function App() {
 
   const handleReset = () => {
     clearDraft();
-    setClient({ name: '', company: '', email: '' });
-    setRatings({ overall: 0, quality: 0, communication: 0, timeliness: 0, value: 0 });
-    setFeedback({ liked: '', improvements: '', recommendation: '' });
-    setTestimonial({ text: '', permission: true });
+    setClient({ ...EMPTY_CLIENT, ...readPrefill() });
+    setRatings(EMPTY_RATINGS);
+    setFeedback(EMPTY_FEEDBACK);
+    setTestimonial(EMPTY_TESTIMONIAL);
     setReferrals([]);
     setCurrentStep(1);
     setHighestStepReached(1);
+    setStartedAt(Date.now());
     setIsSubmitted(false);
-    setSubmissionResult(null);
+    setSubmission(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const displayName = [client.name.trim(), [client.role.trim(), client.company.trim()].filter(Boolean).join(', ')]
+    .filter(Boolean)
+    .join(', ');
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] font-sans text-slate-900 flex flex-col justify-between selection:bg-slate-900 selection:text-white relative overflow-x-hidden">
-      {/* Subtle ambient lighting glows matching Professional Polish */}
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-slate-200/50 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 -z-10" />
-      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-slate-200/40 rounded-full blur-[120px] pointer-events-none translate-y-1/3 -z-10" />
-
-      {/* Top Navbar */}
-      <header className="w-full bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <a
-            href="https://www.magolabs.in"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 rounded-lg p-1"
-          >
-            <MagoLabsLogo size="md" />
+    <div className="min-h-screen flex flex-col bg-paper text-ink">
+      <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur border-b border-hairline">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <a href="https://www.magolabs.in" target="_blank" rel="noopener noreferrer" aria-label="Mago Labs website">
+            <MagoLabsLogo />
           </a>
-
-          <div className="flex items-center gap-4">
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
-              <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
-              Secure Submission
-            </span>
-            <a
-              href="https://www.magolabs.in"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1 transition-colors"
-            >
-              <span>magolabs.in</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+          <span className="ml-eyebrow hidden sm:inline">Client feedback</span>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {!isSubmitted ? (
-          <div className="space-y-6 sm:space-y-8">
-            {/* Top Header Card matching Professional Polish theme — only on Step 1 */}
+          <>
             {currentStep === 1 && (
-              <div className="bg-white rounded-[32px] border border-slate-200/80 p-6 sm:p-8 shadow-xs relative overflow-hidden text-center space-y-3">
-                <div className="inline-flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[8px] sm:text-[10px] font-bold tracking-wide sm:tracking-widest text-slate-500 uppercase whitespace-nowrap">
-                  <span>EST. TIME: 2 MIN</span>
-                  <span>•</span>
-                  <span>MAGO LABS CLIENT FEEDBACK</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
-                  We&apos;d Love To Hear From You
+              <div className="mb-10">
+                <p className="ml-eyebrow">About 2 minutes / 6 short steps</p>
+                <h1 className="mt-4 text-[36px] sm:text-[52px] leading-[1.05] font-bold tracking-tight">
+                  {client.name.trim() ? `${client.name.trim().split(/\s+/)[0]}, how` : 'How'} did we{' '}
+                  <span className="ml-mark">do?</span>
                 </h1>
-                <div className="max-w-xl mx-auto space-y-1.5 text-sm sm:text-base text-slate-600 leading-relaxed">
-                  <p>
-                    Your feedback helps us understand what we&apos;re doing well, where we can improve, and how we can create an even better experience for our clients.
-                  </p>
-                  <p className="text-xs sm:text-sm text-slate-400 font-medium">
-                    Thank you for taking a few minutes to share your experience.
-                  </p>
-                </div>
+                <p className="mt-5 text-[16px] sm:text-[17px] leading-relaxed text-muted max-w-xl">
+                  Thank you for trusting Mago Labs with your business. Your honest feedback shapes how we work, and
+                  every answer is read personally by Burhan, our founder.
+                </p>
               </div>
             )}
 
-            {/* Stepper Progress Indicator */}
-            <ProgressIndicator
-              currentStep={currentStep}
-              onStepClick={handleStepJump}
-              highestStepReached={highestStepReached}
-            />
+            <ProgressIndicator currentStep={currentStep} highestStepReached={highestStepReached} onStepClick={handleStepJump} />
 
-            {/* Step Card Container */}
-            <div ref={stepCardRef} className="bg-white rounded-[32px] border border-slate-200/80 shadow-xs p-6 sm:p-10 relative overflow-hidden transition-all duration-300">
+            <div ref={cardRef} className="ml-card p-5 sm:p-10 scroll-mt-24">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentStep}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
                 >
                   {currentStep === 1 && (
-                    <Step1AboutYou
-                      data={client}
-                      onUpdate={(data) => setClient((prev) => ({ ...prev, ...data }))}
-                      onNext={handleNext}
-                    />
+                    <Step1AboutYou data={client} onUpdate={(d) => setClient((p) => ({ ...p, ...d }))} onNext={handleNext} />
                   )}
-
                   {currentStep === 2 && (
                     <Step2Experience
                       ratings={ratings}
-                      onUpdate={(newRatings) => setRatings((prev) => ({ ...prev, ...newRatings }))}
+                      recommendation={feedback.recommendation}
+                      onUpdate={(r) => setRatings((p) => ({ ...p, ...r }))}
+                      onRecommendation={(v: RecommendationOption) => setFeedback((p) => ({ ...p, recommendation: v }))}
                       onNext={handleNext}
                       onBack={handleBack}
                     />
                   )}
-
                   {currentStep === 3 && (
                     <Step3Feedback
                       data={feedback}
-                      onUpdate={(data) => setFeedback((prev) => ({ ...prev, ...data }))}
+                      overall={ratings.overall}
+                      onUpdate={(d) => setFeedback((p) => ({ ...p, ...d }))}
                       onNext={handleNext}
                       onBack={handleBack}
                     />
                   )}
-
                   {currentStep === 4 && (
                     <Step4Testimonial
                       data={testimonial}
-                      onUpdate={(data) => setTestimonial((prev) => ({ ...prev, ...data }))}
+                      liked={feedback.liked}
+                      displayName={displayName}
+                      onUpdate={(d) => setTestimonial((p) => ({ ...p, ...d }))}
                       onNext={handleNext}
                       onBack={handleBack}
                     />
                   )}
-
                   {currentStep === 5 && (
                     <Step5Referrals
                       referrals={referrals}
-                      onAddReferral={handleAddReferral}
-                      onRemoveReferral={handleRemoveReferral}
-                      onUpdateReferral={handleUpdateReferral}
+                      overall={ratings.overall}
+                      onAddReferral={addReferral}
+                      onRemoveReferral={removeReferral}
+                      onUpdateReferral={updateReferral}
                       onNext={handleNext}
                       onBack={handleBack}
                     />
                   )}
-
                   {currentStep === 6 && (
                     <Step6Review
                       client={client}
@@ -378,42 +319,48 @@ export default function App() {
                       feedback={feedback}
                       testimonial={testimonial}
                       referrals={referrals}
+                      honeypot={honeypot}
+                      onHoneypot={setHoneypot}
                       onEditStep={handleStepJump}
                       onBack={handleBack}
                       onSubmit={handleSubmit}
                       isSubmitting={isSubmitting}
+                      error={submitError}
                     />
                   )}
                 </motion.div>
               </AnimatePresence>
             </div>
-          </div>
+
+            <p className="mt-6 text-center text-[12px] text-muted">
+              Your answers save on this device as you go, so you can close the page and pick up later.
+            </p>
+          </>
         ) : (
-          /* Confirmation Success Screen */
-          <div className="bg-white rounded-[32px] border border-slate-200/80 shadow-xs p-6 sm:p-10 my-4">
-            <SuccessScreen
-              submissionData={submissionResult}
-              onReset={handleReset}
-            />
-          </div>
+          <SuccessScreen submission={submission} onReset={handleReset} />
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="w-full border-t border-slate-200/80 bg-white py-8 mt-12 text-slate-500 text-xs">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col items-center justify-center gap-2 text-center">
-          <MagoLabsLogo size="sm" />
-          <a
-            href="https://www.magolabs.in"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-slate-900 transition-colors font-medium text-slate-500"
-          >
-            www.magolabs.in
+      <footer className="border-t border-hairline">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <a href="https://www.magolabs.in" target="_blank" rel="noopener noreferrer" aria-label="Mago Labs website">
+            <MagoLabsLogo size="sm" />
           </a>
+          <div className="flex items-center gap-5">
+            <a href="mailto:burhan@magolabs.in" className="ml-eyebrow hover:text-ink transition-colors">
+              burhan@magolabs.in
+            </a>
+            <a
+              href="https://www.magolabs.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-eyebrow hover:text-ink transition-colors"
+            >
+              magolabs.in
+            </a>
+          </div>
         </div>
       </footer>
     </div>
   );
 }
-
