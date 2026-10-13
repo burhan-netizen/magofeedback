@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Ratings, RecommendationOption } from '../types';
 import { StarRating } from './StarRating';
-import { OptionalTag, StepHeader, StepNav } from './ui';
+import { StepHeader, StepNav } from './ui';
 
 interface Step2Props {
   ratings: Ratings;
@@ -87,7 +87,6 @@ export const Step2Experience: React.FC<Step2Props> = ({
       <div className="mt-10 rounded-2xl border border-hairline bg-paper px-4 sm:px-6 py-2">
         <p className="pt-4 pb-1 text-[15px] font-semibold text-ink">
           A little more detail
-          <OptionalTag />
         </p>
         {DETAILS.map((d) => (
           <StarRating

@@ -4,6 +4,7 @@ import { FeedbackSubmission } from '../types';
 
 export const GOOGLE_REVIEW_URL = 'https://g.page/r/CXyj1A87sv2BEBM/review';
 const SITE_URL = 'https://www.magolabs.in';
+const TRADES_URL = 'https://trades.magolabs.in/';
 
 interface SuccessScreenProps {
   submission: FeedbackSubmission | null;
@@ -60,7 +61,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({ submission, onRese
       <h2 className={`mt-3 text-[24px] sm:text-[28px] leading-tight font-bold ${happy ? 'text-paper' : 'text-ink'}`}>
         {happy ? (
           <>
-            Would you say the same on <span className="ml-mark text-ink">Google?</span>
+            Would you share this on <span className="ml-mark text-ink">Google?</span>
           </>
         ) : (
           'You can also leave a public review on Google.'
@@ -68,8 +69,7 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({ submission, onRese
       </h2>
       {happy && (
         <p className="mt-3 text-[15px] leading-relaxed text-soft">
-          A Google review is how the next business owner finds us and decides to trust us. It helps a small studio
-          more than almost anything else.
+          It takes a minute and helps other business owners find us and decide with confidence.
         </p>
       )}
 
@@ -159,15 +159,34 @@ export const SuccessScreen: React.FC<SuccessScreenProps> = ({ submission, onRese
         </button>
       </div>
 
-      <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a href={SITE_URL} target="_blank" rel="noopener noreferrer" className="ml-link-btn">
-          Visit magolabs.in
+      <div className="mt-6 grid sm:grid-cols-2 gap-3 text-left">
+        <a
+          href={SITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group rounded-2xl border border-hairline bg-white p-5 hover:border-ink transition-colors"
+        >
+          <p className="ml-eyebrow">For growing businesses</p>
+          <p className="mt-1.5 text-[16px] font-semibold text-ink">
+            magolabs.in <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">↗</span>
+          </p>
         </a>
-        <span className="hidden sm:inline text-hairline">/</span>
-        <button type="button" onClick={onReset} className="ml-link-btn">
-          Submit another response
-        </button>
+        <a
+          href={TRADES_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group rounded-2xl border border-hairline bg-white p-5 hover:border-ink transition-colors"
+        >
+          <p className="ml-eyebrow">For contractors and trades</p>
+          <p className="mt-1.5 text-[16px] font-semibold text-ink">
+            trades.magolabs.in <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">↗</span>
+          </p>
+        </a>
       </div>
+
+      <button type="button" onClick={onReset} className="ml-link-btn mt-10">
+        Submit another response
+      </button>
     </div>
   );
 };

@@ -328,7 +328,7 @@ export default function App() {
           <a href="https://www.magolabs.in" target="_blank" rel="noopener noreferrer" aria-label="Mago Labs website">
             <MagoLabsLogo size="sm" />
           </a>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <a href="mailto:burhan@magolabs.in" className="ml-eyebrow hover:text-ink transition-colors">
               burhan@magolabs.in
             </a>
@@ -339,6 +339,14 @@ export default function App() {
               className="ml-eyebrow hover:text-ink transition-colors"
             >
               magolabs.in
+            </a>
+            <a
+              href="https://trades.magolabs.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-eyebrow hover:text-ink transition-colors"
+            >
+              trades.magolabs.in
             </a>
           </div>
         </div>

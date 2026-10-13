@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { TestimonialData } from '../types';
-import { StepHeader, StepNav } from './ui';
+import { OptionalTag, StepHeader, StepNav } from './ui';
 
 interface Step4Props {
   data: TestimonialData;
@@ -111,6 +111,7 @@ export const Step4Testimonial: React.FC<Step4Props> = ({ data, liked, displayNam
         <div>
           <p className="ml-label">
             Your photo or business logo
+            <OptionalTag />
           </p>
           <p className="text-[13px] text-muted -mt-0.5 mb-3">Testimonials with a face or logo are trusted far more.</p>
 

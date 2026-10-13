@@ -48,7 +48,6 @@ export const Step5Referrals: React.FC<Step5Props> = ({
   onBack,
 }) => {
   const [tried, setTried] = useState(false);
-  const [showNudge, setShowNudge] = useState(false);
 
   const completeCount = referrals.filter(isComplete).length;
   const hasBroken = referrals.some((r) => isStarted(r) && !isComplete(r));
@@ -77,17 +76,8 @@ export const Step5Referrals: React.FC<Step5Props> = ({
       if (first) focusName(first.id);
       return;
     }
-    if (completeCount === 0 && !showNudge) {
-      setShowNudge(true);
-      requestAnimationFrame(() =>
-        document.getElementById('referral-nudge')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      );
-      return;
-    }
     onNext();
   };
-
-  const happy = overall >= 4;
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -95,19 +85,10 @@ export const Step5Referrals: React.FC<Step5Props> = ({
         eyebrow="Step 05 / Pass it on"
         title={
           <>
-            Who else deserves {happy ? 'a result like yours?' : 'a website that works?'}{' '}
-            <span className="ml-mark">One or two names</span> is all we ask.
+            Know a business that deserves <span className="ml-mark">a better website?</span>
           </>
         }
-        intro={
-          <>
-            <p>
-              Mago Labs is a small studio. Nearly every new project starts the same way: a happy client mentions our
-              name to someone they know. It is the single most helpful thing you can do for us, and it takes under a
-              minute.
-            </p>
-          </>
-        }
+        intro="Most of our work comes through clients who introduce us to people they trust. If someone comes to mind, we will take good care of them."
       />
 
       {/* Memory joggers */}
@@ -194,7 +175,8 @@ export const Step5Referrals: React.FC<Step5Props> = ({
                   </div>
                   <div>
                     <label htmlFor={`ref-email-${r.id}`} className="ml-label">
-                      or Email
+                      Email
+                      <OptionalTag />
                     </label>
                     <input
                       id={`ref-email-${r.id}`}
@@ -282,9 +264,7 @@ export const Step5Referrals: React.FC<Step5Props> = ({
       {completeCount > 0 && (
         <p className="mt-6 text-[15px] font-medium text-ink flex items-start gap-3" aria-live="polite">
           <span className="mt-1.5 inline-block w-1 h-5 bg-signal shrink-0" aria-hidden="true" />
-          {completeCount === 1
-            ? 'One name added. Thank you. If a second person comes to mind, add them too.'
-            : `${completeCount} names added. That genuinely makes our week. Thank you.`}
+          {completeCount === 1 ? 'Thank you. We will look after them.' : `Thank you. We will look after all ${completeCount} of them.`}
         </p>
       )}
 
@@ -297,30 +277,8 @@ export const Step5Referrals: React.FC<Step5Props> = ({
         </p>
       </div>
 
-      {showNudge && completeCount === 0 && (
-        <div id="referral-nudge" className="mt-6 rounded-2xl border border-signal bg-signal-soft p-5 sm:p-6">
-          <p className="text-[16px] font-semibold text-ink">Before you skip, take ten seconds.</p>
-          <p className="mt-1.5 text-[14px] leading-relaxed text-ink/80">
-            Has anyone asked who built your website? Is there a supplier or a friend whose business you would like to
-            see grow? Even one name helps a small studio more than you would think.
-          </p>
-          <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
-            <button
-              type="button"
-              className="ml-btn-primary"
-              onClick={() => {
-                const target = referrals[0];
-                if (target) focusName(target.id);
-                else addAnother();
-              }}
-            >
-              Add a name
-            </button>
-            <button type="button" className="ml-link-btn" onClick={onNext}>
-              No one comes to mind, skip
-            </button>
-          </div>
-        </div>
+      {completeCount === 0 && (
+        <p className="mt-6 text-[14px] text-muted">No one in mind right now? That is fine, just continue.</p>
       )}
 
       <StepNav
