@@ -17,7 +17,7 @@ Each submission is emailed to Burhan through Resend and, optionally, logged to a
 Prefill the client's details by adding them to the link:
 
 ```
-https://YOUR-DOMAIN/?name=Rahul%20Shah&company=Modi%20Foods&email=rahul@example.com
+https://feedback.magolabs.in/?name=Rahul%20Shah&company=Modi%20Foods&email=rahul@example.com
 ```
 
 Supported: `name`, `company`, `role`, `email`. Spaces become `%20`.
